@@ -9,13 +9,21 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.63",
+    "@ai-sdk/openai": "^3.0.47",
+    "@clerk/nextjs": "^7.0.6",
+    "@neondatabase/serverless": "^1.0.2",
+    "ai": "^6.0.134",
     "next": "16.2.1",
+    "openai": "^6.32.0",
+    "papaparse": "^5.5.3",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
