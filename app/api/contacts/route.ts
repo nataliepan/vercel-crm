@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { searchContacts } from '@/lib/nl-search'
 
 export async function GET(req: NextRequest) {
   const { userId } = await auth()
@@ -9,6 +10,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
   const cursor = searchParams.get('cursor') // last id for keyset pagination
   const q = searchParams.get('q')?.trim()   // optional trigram search query
+  const nl = searchParams.get('nl')?.trim() // optional NL search query
+
+  // NL search: convert plain English to SQL via Claude, with trigram fallback.
+  if (nl) {
+    const contacts = await searchContacts(nl, userId)
+    return NextResponse.json({ contacts, nextCursor: null, mode: 'nl' })
+  }
 
   if (q) {
     // Trigram search: ILIKE across name, email, company, role.
