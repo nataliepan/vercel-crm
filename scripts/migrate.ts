@@ -109,7 +109,9 @@ async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_contacts_user_id
       ON contacts(user_id);
 
-    CREATE INDEX IF NOT EXISTS idx_contacts_email
+    -- Why UNIQUE: required for ON CONFLICT (user_id, email) upserts on import.
+    -- A plain index doesn't satisfy the ON CONFLICT constraint requirement.
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_email
       ON contacts(user_id, email);
 
     CREATE INDEX IF NOT EXISTS idx_contacts_trgm_email
