@@ -23,6 +23,8 @@ type Props = {
   initialQuery: string
 }
 
+type SearchMode = 'text' | 'nl'
+
 export default function ContactTable({ initialContacts, initialNextCursor, initialQuery }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -30,23 +32,32 @@ export default function ContactTable({ initialContacts, initialNextCursor, initi
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
   const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor)
   const [query, setQuery] = useState(initialQuery)
+  const [mode, setMode] = useState<SearchMode>('text')
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
 
-  // Debounced search: wait 300ms after the user stops typing before fetching.
+  // Debounced search: wait 400ms for NL (AI call), 300ms for text.
   // Avoids firing a request on every keystroke.
   useEffect(() => {
+    const delay = mode === 'nl' ? 600 : 300
     const timer = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString())
       if (query) {
-        params.set('q', query)
+        params.set(mode === 'nl' ? 'nl' : 'q', query)
+        params.delete(mode === 'nl' ? 'q' : 'nl')
       } else {
         params.delete('q')
+        params.delete('nl')
       }
       router.push(`/contacts?${params.toString()}`, { scroll: false })
 
       setLoading(true)
-      const url = query ? `/api/contacts?q=${encodeURIComponent(query)}` : '/api/contacts'
+      let url = '/api/contacts'
+      if (query) {
+        url += mode === 'nl'
+          ? `?nl=${encodeURIComponent(query)}`
+          : `?q=${encodeURIComponent(query)}`
+      }
       fetch(url)
         .then(r => r.json())
         .then(data => {
@@ -54,11 +65,11 @@ export default function ContactTable({ initialContacts, initialNextCursor, initi
           setNextCursor(data.nextCursor)
         })
         .finally(() => setLoading(false))
-    }, 300)
+    }, delay)
 
     return () => clearTimeout(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query])
+  }, [query, mode])
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || loadingMore) return
@@ -73,23 +84,41 @@ export default function ContactTable({ initialContacts, initialNextCursor, initi
     }
   }, [nextCursor, loadingMore])
 
+  const placeholder = mode === 'nl'
+    ? 'Ask in plain English, e.g. "founders who attended AI events"…'
+    : 'Search by name, email, company, or role…'
+
   return (
     <div>
-      {/* Search box */}
-      <div className="mb-4">
+      {/* Search box + mode toggle */}
+      <div className="mb-4 flex gap-2">
         <input
           type="text"
-          placeholder="Search by name, email, company, or role…"
+          placeholder={placeholder}
           value={query}
           onChange={e => setQuery(e.target.value)}
-          className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+          className="flex-1 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900"
         />
+        {/* Mode toggle: text search vs NL (AI) search */}
+        <button
+          onClick={() => { setMode(m => m === 'text' ? 'nl' : 'text'); setQuery('') }}
+          className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+            mode === 'nl'
+              ? 'border-zinc-900 bg-zinc-900 text-white'
+              : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
+          }`}
+          title={mode === 'nl' ? 'Switch to text search' : 'Switch to AI (natural language) search'}
+        >
+          {mode === 'nl' ? 'AI search' : 'AI search'}
+        </button>
       </div>
 
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
         {loading ? (
-          <div className="py-16 text-center text-sm text-zinc-400">Searching…</div>
+          <div className="py-16 text-center text-sm text-zinc-400">
+            {mode === 'nl' ? 'Asking Claude…' : 'Searching…'}
+          </div>
         ) : contacts.length === 0 ? (
           <div className="py-16 text-center text-sm text-zinc-400">
             {query ? 'No contacts match your search.' : 'No contacts yet. Import a CSV to get started.'}
